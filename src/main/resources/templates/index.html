@@ -1,0 +1,147 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePassword</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            background: #0b1120;
+            color: #f1f5f9;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        h1 {
+            color: #4ade80;
+        }
+
+        .card {
+            max-width: 450px;
+            margin: 40px auto;
+            padding: 25px;
+            background: #151f32;
+            border-radius: 12px;
+        }
+
+        input, button {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input {
+            background: #0b1120;
+            color: white;
+            border: 1px solid #3a4860;
+        }
+
+        button {
+            border: none;
+            background: #4ade80;
+            color: #052e16;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        p {
+            color: #a8b3c7;
+            line-height: 1.6;
+        }
+
+        #resultado {
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🛡 SafePassword</h1>
+    <p>Descubra se sua senha apareceu em vazamentos conhecidos.</p>
+
+    <div class="card">
+        <form id="passwordForm">
+            <label for="password">Senha para verificar</label>
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Digite uma senha de teste"
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit">Verificar senha</button>
+        </form>
+
+        <p id="resultado" role="status" aria-live="polite"></p>
+    </div>
+
+    <script>
+        const form = document.getElementById("passwordForm");
+        const campo = document.getElementById("password");
+        const resultado = document.getElementById("resultado");
+        const botao = form.querySelector("button");
+
+        form.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const senha = campo.value;
+
+            if (!senha) {
+                resultado.textContent = "Digite uma senha para consultar.";
+                return;
+            }
+
+            botao.disabled = true;
+            resultado.textContent = "Consultando a base de senhas...";
+
+            try {
+                const resposta = await fetch("/api/password-check", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ password: senha })
+                });
+
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error("Falha na consulta.");
+                }
+
+                if (dados.comprometida) {
+                    resultado.textContent =
+                        "Atenção! Esta senha apareceu " +
+                        dados.ocorrencias +
+                        " vezes na base de senhas comprometidas. Não a utilize.";
+                } else {
+                    resultado.textContent =
+                        "Não encontramos esta senha na base consultada. " +
+                        "Isso não garante que ela nunca tenha sido vazada.";
+                }
+
+            } catch (erro) {
+                resultado.textContent =
+                    "Não foi possível verificar agora. Confira a conexão e tente novamente.";
+            } finally {
+                campo.value = "";
+                botao.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
